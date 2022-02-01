@@ -1,0 +1,11 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+$/ = '';
+my $msg = <>;
+
+# Add smiley for releases ONLY
+$msg =~ /^(\[[a-z0-9]{3,}\])+ +/ or $msg =~ /^\^_\^ +Version .* released/
+	or die "Commit message must start tag in brackets ([api], [doc], [test] etc)";
