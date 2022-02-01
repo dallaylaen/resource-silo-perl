@@ -14,10 +14,7 @@ our $VERSION = 0.01;
 
 =head1 SYNOPSIS
 
-    use Resource::Silo;
 
-    my $foo = Resource::Silo->new();
-    ...
 
 =head1 EXPORT
 
@@ -30,9 +27,10 @@ use Exporter qw(import);
 our @EXPORT = qw( resource silo );
 
 # <DSL>
-my $instance;
+my $instance;   # The default instance.
+my %is_pure;    # Known resources
 
-=head2 setup( %options )
+=head2 Resource::Silo->setup( %options )
 
 Setup the global Resource::Silo instance available via C<silo>.
 
@@ -91,9 +89,30 @@ sub resource (@) { ## no critic prototype
         _fork_accessor( $name, $builder );
     };
 };
-# </DSL>
 
-my %is_pure;
+=head2 list_resources
+
+Returns a nested hash describing available resource methods:
+
+    resource_type => {
+        pure => 1|0,
+    },
+    ...
+
+=cut
+
+sub list_resources {
+    my $class = shift; # unused
+
+    # TODO add builder subs?
+    return { map {
+        $_ => {
+            pure => $is_pure{$_},
+        }
+    } keys %is_pure };
+};
+
+# </DSL>
 
 =head1 INSTANCE METHODS
 
@@ -163,7 +182,6 @@ sub _fork_accessor {
         my $self = shift;
 
         if ($self->{pid} != $$) {
-            warn "pid changed, reset";
             delete $self->{load};
             $self->{pid} = $$;
         };

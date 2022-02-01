@@ -30,10 +30,22 @@ subtest 'process id' => sub {
     is $rs->unsafe, 'bar', 'unsafe resource preserved';
 };
 
+subtest 'list_resources' => sub {
+    my $hash = Resource::Silo->list_resources;
+    is ref $hash, 'HASH', 'returned hash'
+        or return;
+    is_deeply [ sort keys %$hash ], [ 'safe', 'unsafe' ], "keys as expected";
+    is_deeply $hash, {
+        safe   => { pure => 1 },
+        unsafe => { pure => 0 },
+    }, 'hash content';
+};
 
-
-
-
+subtest 'silo dsl' => sub {
+    Resource::Silo->setup( safe => 'quux' );
+    is silo->safe, 'quux', 'pure resource preserved';
+    is silo->unsafe, 'quux-1', 'non-pure resource initialized';
+};
 
 
 done_testing;
