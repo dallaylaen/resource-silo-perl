@@ -109,7 +109,7 @@ Whether resource is pure, or may be reinitialized e.g. after fork.
 
 sub resource (@) { ## no critic prototype
     my $name = shift;
-    my $builder = pop;
+    my $builder = @_%2 ? pop : undef;
     my %opt = @_;
 
     if ($opt{pure}) {
@@ -154,25 +154,12 @@ Options may include anything that was set up via resource() call.
 sub new {
     my $class = shift;
     my %opt = @_;
-    # TODO options
 
-    my (%pure, %fork);
-
-    foreach( keys %opt ) {
-        if (!defined $is_pure{$_}) {
-            croak "Unknown option $_";
-        } elsif ($is_pure{$_}) {
-            $pure{$_} = $opt{$_};
-        } else {
-            $fork{$_} = $opt{$_};
-        };
-    };
-
-    return bless {
-        pure => \%pure,
-        load => \%fork,
+    my $self = bless {
         pid  => $$,
     }, $class;
+    $self->override( %opt );
+    return $self;
 }
 
 =head2 pid
@@ -195,6 +182,54 @@ Force re-initialization of non-pure resources.
 sub reset {
     my $self = shift;
     delete $self->{load};
+    return $self;
+};
+
+=head2 get( name, ... )
+
+Fetch multiple resources at once.
+
+In list context, returns requested resources preserving order.
+In scalar context, only the first resource is returned.
+
+May be used in void context to force instantiation of resources.
+
+=cut
+
+sub get {
+    # TODO name?
+    my ($self, @list) = @_;
+
+    # TODO validate
+    my @ret = map { $self->$_ } @list;
+    return wantarray ? @ret : $ret[0];
+}
+
+=head2 override( name => $value, ... )
+
+Set resources in existing objects.
+
+If you are using this function, something is probably wrong.
+There should be a way to set up resources in a readonly fashion.
+
+Returns self.
+
+=cut
+
+sub override {
+    my ($self, %values) = @_;
+
+    my @unknown = grep { !defined $is_pure{$_} } keys %values;
+    croak 'Attempt to set unknown resources: '.join ', ', sort @unknown
+        if @unknown;
+
+    foreach( keys %values ) {
+        if ($is_pure{$_}) {
+            $self->{pure}{$_} = $values{$_};
+        } else {
+            $self->{load}{$_} = $values{$_};
+        };
+    };
     return $self;
 };
 

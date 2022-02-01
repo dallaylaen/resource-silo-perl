@@ -49,6 +49,17 @@ subtest 'silo dsl' => sub {
     is silo->unsafe, 'quux-2', 'non-pure resource reinitialized';
 };
 
+subtest 'get resources' => sub {
+    is_deeply [silo->get(qw(safe unsafe unsafe))]
+        , [qw[quux quux-2 quux-2]]
+        , 'fetching multiple values at once'
+        ;
+    is_deeply [scalar silo->get(qw(safe unsafe unsafe))]
+        , [qw[quux]]
+        , 'fetching multiple values at once, but scalar context'
+        ;
+};
+
 
 done_testing;
 
