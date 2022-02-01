@@ -35,10 +35,19 @@ subtest 'list_resources' => sub {
     is ref $hash, 'HASH', 'returned hash'
         or return;
     is_deeply [ sort keys %$hash ], [ 'safe', 'unsafe' ], "keys as expected";
-    is_deeply $hash, {
-        safe   => { pure => 1 },
-        unsafe => { pure => 0 },
-    }, 'hash content';
+    foreach( sort keys %$hash ) {
+        my $data = $hash->{$_};
+        subtest "key $_" => sub {
+            is_deeply [sort keys %$data]
+                , [qw[ builder pure ]]
+                , 'no unexpected keys';
+            like $data->{pure}, qr/^[01]$/, 'purity is boolean';
+            is ref $data->{builder}, 'CODE', 'builder is present';
+        };
+    };
+    is $hash->{safe}{pure}, 1, 'safe if pure';
+    is $hash->{unsafe}{pure}, 0, 'unsafe if impure';
+
 };
 
 subtest 'silo dsl' => sub {
@@ -60,6 +69,10 @@ subtest 'get resources' => sub {
         ;
 };
 
+subtest 'get fresh instance' => sub {
+    is silo->fresh('unsafe'), 'quux-3', 'get a dedicated fresh instance';
+    is silo->unsafe, 'quux-2', 'shared resource is unchanged';
+};
 
 done_testing;
 

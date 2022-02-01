@@ -52,12 +52,13 @@ A clumsy DSL to define one's resources.
 =cut
 
 use Carp;
+
 use Exporter qw(import);
 our @EXPORT = qw( resource silo );
 
 # <DSL>
 my $instance;   # The default instance.
-my %is_pure;    # Known resources
+my %meta;       # Known resources
 
 =head2 Resource::Silo->setup( %options )
 
@@ -133,12 +134,9 @@ Returns a nested hash describing available resource methods:
 sub list_resources {
     my $class = shift; # unused
 
-    # TODO add builder subs?
-    return { map {
-        $_ => {
-            pure => $is_pure{$_},
-        }
-    } keys %is_pure };
+    # TODO deep copy so that noone can mess with real %meta
+    # (dclone doesn't work)
+    return \%meta;
 };
 
 # </DSL>
@@ -205,11 +203,30 @@ sub get {
     return wantarray ? @ret : $ret[0];
 }
 
+=head2 fresh( 'name' )
+
+Initialize a fresh, dedicated instance of resource.
+The instance stored inside Resource::Silo object is unchanged.
+
+If you are using this method, something probably went wrong.
+
+You should be able to manage isolation / pooling of resources
+without this hack.
+
+=cut
+
+sub fresh {
+    my ($self, $name) = @_;
+
+    return $meta{$name}{builder}->($self);
+};
+
 =head2 override( name => $value, ... )
 
 Set resources in existing objects.
 
-If you are using this function, something is probably wrong.
+If you are using this method, something probably went wrong.
+
 There should be a way to set up resources in a readonly fashion.
 
 Returns self.
@@ -219,12 +236,12 @@ Returns self.
 sub override {
     my ($self, %values) = @_;
 
-    my @unknown = grep { !defined $is_pure{$_} } keys %values;
+    my @unknown = grep { !defined $meta{$_} } keys %values;
     croak 'Attempt to set unknown resources: '.join ', ', sort @unknown
         if @unknown;
 
     foreach( keys %values ) {
-        if ($is_pure{$_}) {
+        if ($meta{$_}{pure}) {
             $self->{pure}{$_} = $values{$_};
         } else {
             $self->{load}{$_} = $values{$_};
@@ -240,7 +257,10 @@ sub _pure_accessor {
         croak "Resource $name cannot be built!";
     };
 
-    $is_pure{$name} = 1;
+    $meta{$name} = {
+        pure    => 1,
+        builder => $builder,
+    };
     my $code = sub {
         my $self = shift;
         return $self->{pure}{$name} //= $builder->($self);
@@ -253,7 +273,11 @@ sub _fork_accessor {
     # TODO better name!
     my ($name, $builder) = @_;
 
-    $is_pure{$name} = 0;
+    $meta{$name} = {
+        pure    => 0,
+        builder => $builder,
+    };
+
     my $code = sub {
         my $self = shift;
 
