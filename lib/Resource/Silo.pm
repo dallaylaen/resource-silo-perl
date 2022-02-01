@@ -95,7 +95,7 @@ sub resource (@) { ## no critic prototype
 
 my %is_pure;
 
-=head1 SUBROUTINES/METHODS
+=head1 INSTANCE METHODS
 
 =head2 new
 
@@ -189,14 +189,13 @@ You can find documentation for this module with the perldoc command.
 
     perldoc Resource::Silo
 
-
 You can also look for information at:
 
 =over 4
 
-=item * RT: CPAN's request tracker (report bugs here)
+=item * Bug tracker:
 
-L<https://rt.cpan.org/NoAuth/Bugs.html?Dist=Resource-Silo>
+L<https://github.com/dallaylaen/resource-silo-perl/issues>
 
 =item * CPAN Ratings
 
@@ -204,7 +203,7 @@ L<https://cpanratings.perl.org/d/Resource-Silo>
 
 =item * Search CPAN
 
-L<https://metacpan.org/release/Resource-Silo>
+L<https://metacpan.org/pod/Resource::Silo>
 
 =back
 
@@ -215,6 +214,7 @@ L<https://metacpan.org/release/Resource-Silo>
 =head1 LICENSE AND COPYRIGHT
 
 This software is free software.
+It is available on the same terms as Perl itself.
 
 Copyright (c) 2022 by Konstantin Uvarin.
 
