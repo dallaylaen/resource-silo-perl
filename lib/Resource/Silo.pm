@@ -52,6 +52,7 @@ A clumsy DSL to define one's resources.
 =cut
 
 use Carp;
+use List::Util qw(uniq);
 
 use Exporter qw(import);
 our @EXPORT = qw( resource silo );
@@ -73,6 +74,8 @@ sub setup {
 
     croak "Attempt to call ".__PACKAGE__."->setup() twice"
         if $instance;
+
+    check_deps(); # delay until all possible resource defs have been loaded
     $instance = $class->new( @_ );
 };
 
@@ -139,8 +142,9 @@ sub resource (@) { ## no critic prototype
     # TODO moar validation
 
     $meta{$name} = {
-        pure  => $opt{pure} ? 1 : 0,
-        build => $builder,
+        pure    => $opt{pure} ? 1 : 0,
+        build   => $builder,
+        depends => [ sort uniq @{ $opt{depends} || [] } ],
     };
 
     my $code = $opt{pure}
@@ -183,6 +187,33 @@ sub list_resources {
     # (dclone doesn't work)
     return \%meta;
 };
+
+=head2 check_deps
+
+Dies if some resources have unsatisfied dependencies.
+
+=cut
+
+sub check_deps {
+    my @bad;
+    # TODO check circularity, too
+    foreach my $name( sort keys %meta ) {
+        my $entry = $meta{$name};
+        my @missing;
+        foreach (@{ $entry->{depends} }) {
+            push @missing, $_
+                unless ($meta{$_});
+            # TODO pure resources can't depend on impure!
+        };
+        push @bad, "resource $name depends on [".(join ', ', @missing).']'
+            if @missing;
+    };
+    # TODO maybe structured return here?
+    croak "Resource::Silo: unsatisfied dependencies: ".join "; ", @bad
+        if @bad;
+
+    return;
+}
 
 # </DSL>
 
