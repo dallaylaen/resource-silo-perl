@@ -34,15 +34,18 @@ subtest 'list_resources' => sub {
     my $hash = Resource::Silo->list_resources;
     is ref $hash, 'HASH', 'returned hash'
         or return;
+
+    note explain $hash;
+
     is_deeply [ sort keys %$hash ], [ 'safe', 'unsafe' ], "keys as expected";
     foreach( sort keys %$hash ) {
         my $data = $hash->{$_};
         subtest "key $_" => sub {
             is_deeply [sort keys %$data]
-                , [qw[ builder pure ]]
+                , [qw[ build pure ]]
                 , 'no unexpected keys';
             like $data->{pure}, qr/^[01]$/, 'purity is boolean';
-            is ref $data->{builder}, 'CODE', 'builder is present';
+            is ref $data->{build}, 'CODE', 'builder is present';
         };
     };
     is $hash->{safe}{pure}, 1, 'safe if pure';

@@ -108,16 +108,61 @@ Whether resource is pure, or may be reinitialized e.g. after fork.
 
 =cut
 
+my %def_options = map { $_=>1 } qw( build depends pure validate );
 sub resource (@) { ## no critic prototype
     my $name = shift;
     my $builder = @_%2 ? pop : undef;
     my %opt = @_;
 
-    if ($opt{pure}) {
-        _pure_accessor( $name, $builder );
-    } else {
-        _fork_accessor( $name, $builder );
+    croak "Bad resource name, must be an identifier"
+        unless $name =~ /^[a-z][a-z_0-9]*$/i;
+    my @unknown = grep { !$def_options{$_} } keys %opt;
+    croak "Unexpected parameters in resource: ".join ', ', sort keys @unknown
+        if @unknown;
+    croak "Attempt to redefine resource type $name"
+        if $meta{$name};
+    croak "Resource name clashes with method in Resource::Silo"
+        if Resource::Silo->can($name);
+
+    croak "Builder specified twice"
+        if $opt{build} and $builder;
+    $builder //= delete $opt{build};
+
+    croak "No builder found for impure resource"
+        if !$builder and !$opt{pure};
+
+    $builder //= sub {
+        # TODO should we even allow non-mandatory resource w/o builder?
+        confess "Resource $name wasn't specified and no builder found";
     };
+
+    # TODO moar validation
+
+    $meta{$name} = {
+        pure  => $opt{pure} ? 1 : 0,
+        build => $builder,
+    };
+
+    my $code = $opt{pure}
+        ? sub {
+            my $self = shift;
+            return $self->{pure}{$name} //= $builder->($self);
+        }
+        : sub {
+            my $self = shift;
+
+            if ($self->{pid} != $$) {
+                delete $self->{load};
+                $self->{pid} = $$;
+            };
+
+            return $self->{load}{$name} //= $builder->($self);
+        };
+
+    no strict 'refs'; ## no critic
+    *$name = $code;
+
+    return; # ensure void
 };
 
 =head2 list_resources
@@ -218,7 +263,7 @@ without this hack.
 sub fresh {
     my ($self, $name) = @_;
 
-    return $meta{$name}{builder}->($self);
+    return $meta{$name}{build}->($self);
 };
 
 =head2 override( name => $value, ... )
@@ -250,55 +295,10 @@ sub override {
     return $self;
 };
 
-sub _pure_accessor {
-    my ($name, $builder) = @_;
-
-    $builder //= sub {
-        croak "Resource $name cannot be built!";
-    };
-
-    $meta{$name} = {
-        pure    => 1,
-        builder => $builder,
-    };
-    my $code = sub {
-        my $self = shift;
-        return $self->{pure}{$name} //= $builder->($self);
-    };
-    no strict 'refs'; ## no critic
-    *$name = $code;
-}
-
-sub _fork_accessor {
-    # TODO better name!
-    my ($name, $builder) = @_;
-
-    $meta{$name} = {
-        pure    => 0,
-        builder => $builder,
-    };
-
-    my $code = sub {
-        my $self = shift;
-
-        if ($self->{pid} != $$) {
-            delete $self->{load};
-            $self->{pid} = $$;
-        };
-
-        return $self->{load}{$name} //= $builder->($self);
-    };
-    no strict 'refs'; ## no critic
-    *$name = $code;
-}
-
-
 =head1 BUGS
 
 Please report any bugs or feature requests to C<bug-Resource-Silo at rt.cpan.org>, or through
 the web interface at L<https://rt.cpan.org/NoAuth/ReportBug.html?Queue=Resource-Silo>.
-
-
 
 
 =head1 SUPPORT
