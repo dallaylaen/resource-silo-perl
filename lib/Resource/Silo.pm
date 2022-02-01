@@ -14,7 +14,36 @@ our $VERSION = 0.01;
 
 =head1 SYNOPSIS
 
+    use Resource::Silo;
 
+    # Moose-like resource DSL - this has to be done only once
+    resource config_file => pure => 1;
+    resource config => pure => 1, sub {
+        my $self = shift;
+        Load(read_text($self->config_file));
+    };
+    resource dbh => pure => 0, sub {
+        my $self = shift;
+        my $conf = $self->config->{database};
+        return DBI->connect( $conf->{dsn}, $conf->{username}, $conf->{password}, { RaiseError => 1} );
+    };
+
+    # at the start of your script
+    Resource::Silo->setup( config_file => "$FindBin::Bin/../etc/config.yaml" );
+
+    # everywhere else
+    silo->dbh; # returns a database handle, reconnecting if needed
+
+    # somewhere in test files
+    Resource::Silo->setup( dbh => $mock_database );
+
+    # in you classes
+    with 'Resource::Silo::Role';
+
+    sub do_something {
+        my $self = shift;
+        $self->res->dbh->do( $sql );
+    };
 
 =head1 EXPORT
 
@@ -155,6 +184,18 @@ Returns the process id ($$) under which the object was created.
 sub pid {
     my $self = shift;
     return $self->{pid};
+};
+
+=head2 reset
+
+Force re-initialization of non-pure resources.
+
+=cut
+
+sub reset {
+    my $self = shift;
+    delete $self->{load};
+    return $self;
 };
 
 sub _pure_accessor {
