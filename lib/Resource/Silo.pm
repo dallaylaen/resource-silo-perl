@@ -61,24 +61,6 @@ our @EXPORT = qw( resource silo );
 my $instance;   # The default instance.
 my %meta;       # Known resources
 
-=head2 Resource::Silo->setup( %options )
-
-Setup the global Resource::Silo instance available via C<silo>.
-
-May only be called once.
-
-=cut
-
-sub setup {
-    my $class = shift;
-
-    croak "Attempt to call ".__PACKAGE__."->setup() twice"
-        if $instance;
-
-    check_deps(); # delay until all possible resource defs have been loaded
-    $instance = $class->new( @_ );
-};
-
 =head2 silo
 
 Instance method. Returns *the* instance created by setup,
@@ -167,6 +149,26 @@ sub resource (@) { ## no critic prototype
     *$name = $code;
 
     return; # ensure void
+};
+
+=head1 STATIC METHODS
+
+=head2 Resource::Silo->setup( %options )
+
+Setup the global Resource::Silo instance available via C<silo>.
+
+May only be called once.
+
+=cut
+
+sub setup {
+    my $class = shift;
+
+    croak "Attempt to call ".__PACKAGE__."->setup() twice"
+        if $instance;
+
+    check_deps(); # delay until all possible resource defs have been loaded
+    $instance = $class->new( @_ );
 };
 
 =head2 list_resources
