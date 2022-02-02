@@ -194,14 +194,16 @@ sub setup {
 
 =head2 teardown
 
-Erase the default instance.
-
-The remaining copies in objects and the initialized resources
-will still be floating around.
+Erase the default instance and try to free the resources it allocated.
 
 =cut
 
+# TODO better doc
+
 sub teardown {
+    # trigger resource deallocation
+    $instance->reset
+        if $instance;
     undef $instance;
 };
 
