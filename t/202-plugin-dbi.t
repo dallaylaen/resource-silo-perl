@@ -9,6 +9,10 @@ use Resource::Silo::Plugin::DBI;
 
 resource config => pure => 1; # defined after the dependency - this should be ok.
 
+subtest 'pre-setup' => sub {
+    ok !DBI->can('errstr'), 'real DBI was not loaded';
+};
+
 {
     # Avoid loading real DBI
     package DBI;
@@ -54,7 +58,7 @@ subtest 'fetch dbh' => sub {
 
     push @$dbh, 'mark';
 
-    is silo->dbh->[-1], 'mark', 'spoilt original resource (emulate side effect';
+    is silo->dbh->[-1], 'mark', 'original resource is changed (emulate side effect)';
 
     silo->reset;
     is_deeply silo->dbh, [
@@ -64,7 +68,7 @@ subtest 'fetch dbh' => sub {
             'secret',
             { RaiseError => 1 },
         ],
-        'reinitialized afresh';
+        'reloaded resource is not changed';
 };
 
 done_testing;
