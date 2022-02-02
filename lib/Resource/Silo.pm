@@ -120,7 +120,7 @@ sub resource (@) { ## no critic prototype
     croak "Bad resource name, must be an identifier"
         unless $name =~ /^[a-z][a-z_0-9]*$/i;
     my @unknown = grep { !$def_options{$_} } keys %opt;
-    croak "Unexpected parameters in resource: ".join ', ', sort keys @unknown
+    croak "Unexpected parameters in resource: ".join ', ', sort @unknown
         if @unknown;
     croak "Attempt to redefine resource type $name"
         if $meta{$name};
