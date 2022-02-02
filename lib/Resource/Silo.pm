@@ -89,6 +89,18 @@ Last argument is the builder sub.
 
 Pure resources will not be re-initialized. Default is 0.
 
+=item required => 1|0
+
+Resource is forced to be loaded during Resource::Silo->setup.
+
+B<NOTE> This does not affect calling Resource::Silo->new.
+
+=item depends => [ 'name', ... ]
+
+Resources that must be present to initialize this one.
+
+The dependencies will not normally be checked until setup() is called.
+
 =item tentative => 1|0
 
 This definition is preliminary and may be overridden later.
@@ -106,7 +118,8 @@ Default: 0.
 
 =cut
 
-my %def_options = map { $_=>1 } qw( build depends pure validate tentative override );
+my %def_options = map { $_=>1 } qw(
+    build depends override pure required tentative validate );
 sub resource (@) { ## no critic prototype
     my $name = shift;
     my $builder = @_%2 ? pop : undef;
@@ -148,6 +161,7 @@ sub resource (@) { ## no critic prototype
 
     # use PerlX::Myabe?
     $meta{$name}{tentative} = 1 if $opt{tentative};
+    $meta{$name}{required} = 1 if $opt{required};
 
     my $code = $opt{pure}
         ? sub {
@@ -189,7 +203,9 @@ sub setup {
         if $instance;
 
     check_deps(); # delay until all possible resource defs have been loaded
-    $instance = $class->new( @_ );
+    my $probe = $class->new( @_ );
+    $probe->get( grep { $meta{$_}{required} } keys %meta );
+    $instance = $probe;
 };
 
 =head2 teardown
