@@ -1,6 +1,6 @@
 package Resource::Silo;
 
-use 5.006;
+use 5.010;
 use strict;
 use warnings;
 
@@ -93,7 +93,7 @@ Whether resource is pure, or may be reinitialized e.g. after fork.
 
 =cut
 
-my %def_options = map { $_=>1 } qw( build depends pure validate );
+my %def_options = map { $_=>1 } qw( build depends pure validate tentative override );
 sub resource (@) { ## no critic prototype
     my $name = shift;
     my $builder = @_%2 ? pop : undef;
@@ -104,10 +104,14 @@ sub resource (@) { ## no critic prototype
     my @unknown = grep { !$def_options{$_} } keys %opt;
     croak "Unexpected parameters in resource: ".join ', ', sort @unknown
         if @unknown;
+
+    return if $meta{$name} and $opt{tentative};
+
     croak "Attempt to redefine resource type $name"
-        if $meta{$name};
-    croak "Resource name clashes with method in Resource::Silo"
-        if Resource::Silo->can($name);
+        if $meta{$name}
+            and not ($opt{override} or $meta{$name}{tentative});
+    croak "Resource name '$name' clashes with a method in Resource::Silo"
+        if Resource::Silo->can($name) and !$meta{$name};
 
     croak "Builder specified twice"
         if $opt{build} and $builder;
@@ -129,6 +133,9 @@ sub resource (@) { ## no critic prototype
         depends => [ sort uniq @{ $opt{depends} || [] } ],
     };
 
+    # use PerlX::Myabe?
+    $meta{$name}{tentative} = 1 if $opt{tentative};
+
     my $code = $opt{pure}
         ? sub {
             my $self = shift;
@@ -146,6 +153,7 @@ sub resource (@) { ## no critic prototype
         };
 
     no strict 'refs'; ## no critic
+    no warnings 'redefine'; ## no critic
     *$name = $code;
 
     return; # ensure void
@@ -169,6 +177,19 @@ sub setup {
 
     check_deps(); # delay until all possible resource defs have been loaded
     $instance = $class->new( @_ );
+};
+
+=head2 teardown
+
+Erase the default instance.
+
+The remaining copies in objects and the initialized resources
+will still be floating around.
+
+=cut
+
+sub teardown {
+    undef $instance;
 };
 
 =head2 list_resources
