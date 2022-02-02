@@ -87,7 +87,20 @@ Last argument is the builder sub.
 
 =item pure => 1|0
 
-Whether resource is pure, or may be reinitialized e.g. after fork.
+Pure resources will not be re-initialized. Default is 0.
+
+=item tentative => 1|0
+
+This definition is preliminary and may be overridden later.
+
+Default: 0.
+
+=item override => 1|0
+
+Override a previous definition.
+Without this option, trying to do so will result in error.
+
+Default: 0.
 
 =back
 
