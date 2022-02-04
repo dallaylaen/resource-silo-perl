@@ -78,6 +78,11 @@ our @EXPORT = qw( resource silo );
 my $instance;   # The default instance.
 my %meta;       # Known resources
 
+# define possible resource types. river referes to dependency ordering
+#     (aka CPAN river)
+my @res_river = qw[ value resource service ];
+my %res_type = map { $res_river[$_] => $_ } 0..@res_river-1;
+
 =head2 silo
 
 Instance method. Returns *the* instance created by setup,
@@ -136,7 +141,7 @@ Default: 0.
 =cut
 
 my %def_options = map { $_=>1 } qw(
-    build depends override pure required tentative validate );
+    build depends override pure required tentative type validate );
 sub resource (@) { ## no critic prototype
     my $name = shift;
     my $builder = @_%2 ? pop : undef;
@@ -147,6 +152,9 @@ sub resource (@) { ## no critic prototype
     my @unknown = grep { !$def_options{$_} } keys %opt;
     croak "Unexpected parameters in resource: ".join ', ', sort @unknown
         if @unknown;
+    my $river = $opt{pure} ? 0 : 1; # TODO rely on opt{type}
+    croak "unknown resource type $opt{type}"
+        unless defined $river;
 
     return if $meta{$name} and $opt{tentative};
 
@@ -161,7 +169,7 @@ sub resource (@) { ## no critic prototype
     $builder //= delete $opt{build};
 
     croak "No builder found for impure resource"
-        if !$builder and !$opt{pure};
+        if !$builder and $river;
 
     $builder //= sub {
         # TODO should we even allow non-mandatory resource w/o builder?
@@ -172,8 +180,9 @@ sub resource (@) { ## no critic prototype
 
     # TODO moar validation
 
+
     $meta{$name} = {
-        pure    => $opt{pure} ? 1 : 0,
+        river   => $river,
         build   => $builder,
         depends => [ sort uniq @{ $opt{depends} || [] } ],
     };
@@ -182,12 +191,14 @@ sub resource (@) { ## no critic prototype
     $meta{$name}{tentative} = 1 if $opt{tentative};
     $meta{$name}{required} = 1 if $opt{required};
 
-    my $code = $opt{pure}
-        ? sub {
+    my $code;
+    if ($river == 0) {
+        $code = sub {
             my $self = shift;
             return $self->{pure}{$name} //= $builder->($self);
-        }
-        : sub {
+        };
+    } elsif ($river == 1) {
+        $code = sub {
             my $self = shift;
 
             if ($self->{pid} != $$) {
@@ -197,6 +208,11 @@ sub resource (@) { ## no critic prototype
 
             return $self->{load}{$name} //= $builder->($self);
         };
+    } else {
+        $code = $builder;
+    };
+
+    $meta{$name}{fetch} = $code;
 
     no strict 'refs'; ## no critic
     no warnings 'redefine'; ## no critic
@@ -256,9 +272,18 @@ Returns a nested hash describing available resource methods:
 sub list_resources {
     my $class = shift; # unused
 
-    # TODO deep copy so that noone can mess with real %meta
-    # (dclone doesn't work)
-    return \%meta;
+    # Deep copy so that noone can mess with real %meta
+    # (dclone doesn't work because of closures)
+    my %out;
+    foreach my $name( keys %meta ) {
+        local $_ = $meta{$name};
+        $out{$name} = {
+            build   => $_->{build},
+            pure    => $_->{river} == 0 ? 1 : 0,
+            depends => [@{ $_->{depends} }],
+        };
+    };
+    return \%out;
 };
 
 =head2 check_deps
@@ -390,10 +415,13 @@ sub override {
         if @unknown;
 
     foreach( keys %values ) {
-        if ($meta{$_}{pure}) {
-            $self->{pure}{$_} = $values{$_};
-        } else {
+        my $river = $meta{$_}{river};
+        croak "Attempt to set a volatile resource"
+            if $river > 1;
+        if ($river) {
             $self->{load}{$_} = $values{$_};
+        } else {
+            $self->{pure}{$_} = $values{$_};
         };
     };
     return $self;
