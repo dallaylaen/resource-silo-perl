@@ -69,6 +69,7 @@ A clumsy DSL to define one's resources.
 
 use Carp;
 use List::Util qw(uniq);
+use Scalar::Util qw(reftype);
 
 use Exporter qw(import);
 our @EXPORT = qw( resource silo );
@@ -166,6 +167,8 @@ sub resource (@) { ## no critic prototype
         # TODO should we even allow non-mandatory resource w/o builder?
         confess "Resource $name wasn't specified and no builder found";
     };
+    croak "Builder is not a function"
+        if !ref $builder || reftype $builder ne 'CODE';
 
     # TODO moar validation
 
