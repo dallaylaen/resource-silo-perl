@@ -195,18 +195,18 @@ sub resource (@) { ## no critic prototype
     if ($river == 0) {
         $code = sub {
             my $self = shift;
-            return $self->{pure}{$name} //= $builder->($self);
+            return $self->{val}{$name} //= $builder->($self);
         };
     } elsif ($river == 1) {
         $code = sub {
             my $self = shift;
 
             if ($self->{pid} != $$) {
-                delete $self->{load};
+                delete $self->{res};
                 $self->{pid} = $$;
             };
 
-            return $self->{load}{$name} //= $builder->($self);
+            return $self->{res}{$name} //= $builder->($self);
         };
     } else {
         $code = $builder;
@@ -353,7 +353,7 @@ Force re-initialization of non-pure resources.
 
 sub reset {
     my $self = shift;
-    delete $self->{load};
+    delete $self->{res};
     return $self;
 };
 
@@ -419,9 +419,9 @@ sub override {
         croak "Attempt to set a volatile resource"
             if $river > 1;
         if ($river) {
-            $self->{load}{$_} = $values{$_};
+            $self->{res}{$_} = $values{$_};
         } else {
-            $self->{pure}{$_} = $values{$_};
+            $self->{val}{$_} = $values{$_};
         };
     };
     return $self;
