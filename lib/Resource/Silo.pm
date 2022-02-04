@@ -12,6 +12,22 @@ Resource::Silo - Dependency injection non-framework
 
 our $VERSION = 0.01;
 
+=head1 DESCRIPTION
+
+Resource::Silo provides a container object that holds shared resources
+such as database connections or configuration files.
+
+Such resources may depend on each other and will be initialized on demand,
+and possibly re-initialized if e.g. the application forks.
+
+A default instance of the container is provided,
+but more instances can be created with new() if needed.
+
+A Moose-like declarative syntax is provided to define resource
+configuration and initialization, as well as a bundle of some useful presets.
+
+A Moo role is provided that handles dependency injection.
+
 =head1 SYNOPSIS
 
     use Resource::Silo;
