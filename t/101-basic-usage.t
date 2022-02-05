@@ -42,15 +42,15 @@ subtest 'list_resources' => sub {
         my $data = $hash->{$_};
         subtest "key $_" => sub {
             is_deeply [sort keys %$data]
-                , [qw[ build depends pure ]]
+                , [qw[ build depends type ]]
                 , 'no unexpected keys';
-            like $data->{pure}, qr/^[01]$/, 'purity is boolean';
+            like $data->{type}, qr/^(value|resource|service)$/, 'purity is boolean';
             is ref $data->{build}, 'CODE', 'builder is present';
             is ref $data->{depends}, 'ARRAY', 'dependencies are an array';
         };
     };
-    is $hash->{safe}{pure}, 1, 'safe if pure';
-    is $hash->{unsafe}{pure}, 0, 'unsafe if impure';
+    is $hash->{safe}{type}, 'value', 'safe is a value';
+    is $hash->{unsafe}{type}, 'resource', 'unsafe is a resource';
 
 };
 

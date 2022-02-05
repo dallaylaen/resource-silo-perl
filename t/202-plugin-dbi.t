@@ -36,7 +36,7 @@ subtest 'metainfo' => sub {
     is ref $meta, 'HASH', 'a hash describing dbh exists'
         or return;
 
-    is $meta->{pure}, 0, 'dbh is impure';
+    is $meta->{type}, 'resource', 'dbh is impure';
     is_deeply $meta->{depends}, [ 'config' ], 'dbh depends on config';
 };
 

@@ -279,7 +279,7 @@ sub list_resources {
         local $_ = $meta{$name};
         $out{$name} = {
             build   => $_->{build},
-            pure    => $_->{river} == 0 ? 1 : 0,
+            type    => $res_river[$_->{river}],
             depends => [@{ $_->{depends} }],
         };
     };
