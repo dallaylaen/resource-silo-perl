@@ -25,7 +25,7 @@ resource unsafe => is => 'setting', sub {
     return $self->safe . '-' . ++$id;
 };
 
-Resource::Silo->setup( safe => 'quux' );
+Resource::Silo->init( safe => 'quux' );
 
 subtest 'default instance' => sub {
     my $f = Foo->new;

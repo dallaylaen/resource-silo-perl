@@ -18,14 +18,14 @@ resource foo => is => 'setting', build => sub { 42 };
 resource bar => is => 'setting', build => sub { 3.14 }, tentative => 1;
 
 subtest 'before overrides' => sub {
-    Resource::Silo->setup;
+    Resource::Silo->init;
     is silo->foo, 42, 'foo as expected';
     is silo->bar, 3.14, 'bar as expected';
     Resource::Silo->teardown;
 };
 
 subtest 'teardown actually worked' => sub {
-    throws_ok { silo } qr/instance.*before.*setup/, 'another setup required';
+    throws_ok { silo } qr/instance.*before.*init/, 'another init required';
 };
 
 subtest 'duplicate definition' => sub {
@@ -33,7 +33,7 @@ subtest 'duplicate definition' => sub {
         resource foo => is => 'setting', build => sub { 137 };
     } qr/redefine .* foo/, 'duplicate definition = error';
 
-    Resource::Silo->setup;
+    Resource::Silo->init;
     is silo->foo, 42, 'foo unchanged';
     Resource::Silo->teardown;
 };
@@ -45,7 +45,7 @@ subtest 'tentative overrides' => sub {
     } 'duplicate definition ok if tentative';
 
     # new values got thrown away!
-    Resource::Silo->setup;
+    Resource::Silo->init;
     is silo->foo, 42, 'foo as expected';
     is silo->bar, 3.14, 'bar as expected';
     Resource::Silo->teardown;
@@ -57,7 +57,7 @@ subtest 'overrides' => sub {
         resource bar => is => 'setting', build => sub { 3.1415 };
     } 'duplicate definition ok if tentative';
 
-    Resource::Silo->setup;
+    Resource::Silo->init;
     is silo->foo, 137, 'foo is updated';
     is silo->bar, 3.1415, 'bar is updated';
     Resource::Silo->teardown;

@@ -55,13 +55,13 @@ Restoration of Erathia> video game.
 
     # At the start of your script
     # This will trigger loading the config because it is 'required'
-    Resource::Silo->setup( config_file => "$FindBin::Bin/../etc/config.yaml" );
+    Resource::Silo->init( config_file => "$FindBin::Bin/../etc/config.yaml" );
 
     # somewhere else
     silo->dbh; # returns a database handle, reconnecting if needed
 
     # somewhere in test files
-    Resource::Silo->setup( dbh => $mock_database );
+    Resource::Silo->init( dbh => $mock_database );
 
     # in your classes
     with 'Resource::Silo::Role';
@@ -96,14 +96,14 @@ my %res_type = map { $res_river[$_] => $_ } 0..@res_river-1;
 
 =head2 silo
 
-Instance method. Returns *the* instance created by setup,
-dies if setup wasn't called.
+Instance method. Returns *the* instance created with Resource::Silo->init,
+dies if init wasn't called.
 
 =cut
 
 # TODO alias to Resource::Silo->instance
 sub silo () { ## no critic prototype
-    croak __PACKAGE__." instance requested before setup()"
+    croak __PACKAGE__." instance requested before init()"
         if !$instance;
     return $instance;
 };
@@ -143,7 +143,7 @@ from which the resource was requested.
 
 Resources that must be present to initialize this one.
 
-The dependencies will not normally be checked until setup() is called.
+The dependencies will not normally be checked until init() is called.
 
 =item class => 'My::Class'
 
@@ -157,7 +157,7 @@ C<[constructor_argument =E<gt> resource_to_fetch]> if names differ.
 
 =item required => 1|0
 
-Resource is forced to be loaded during Resource::Silo->setup.
+Resource is forced to be loaded during Resource::Silo->init.
 
 B<NOTE> This does not currently affect calling Resource::Silo->new.
 
@@ -291,18 +291,18 @@ sub resource (@) { ## no critic prototype
 
 =head1 STATIC METHODS
 
-=head2 Resource::Silo->setup( %options )
+=head2 Resource::Silo->init( %options )
 
-Setup the global Resource::Silo instance available via C<silo>.
+Initialize the global Resource::Silo instance available via C<silo>.
 
 May only be called once.
 
 =cut
 
-sub setup {
+sub init {
     my $class = shift;
 
-    croak "Attempt to call ".__PACKAGE__."->setup() twice"
+    croak "Attempt to call ".__PACKAGE__."->init() twice"
         if $instance;
 
     check_deps(); # delay until all possible resource defs have been loaded
@@ -315,9 +315,11 @@ sub setup {
 
 Erase the default instance and try to free the resources it allocated.
 
-=cut
+This will allow to call C<init> once again.
 
-# TODO better doc
+See also L</reset>.
+
+=cut
 
 sub teardown {
     # trigger resource deallocation
@@ -328,10 +330,13 @@ sub teardown {
 
 =head2 list_resources
 
-Returns a nested hash describing available resource methods:
+Returns a nested hash describing resources that were defined so far:
 
-    resource_type => {
-        pure => 1|0,
+    resource_name => {
+        is      => 'setting' | 'resource' | 'service',
+        depends => [ ... ],
+        build   => CODEREF,
+        ...
     },
     ...
 

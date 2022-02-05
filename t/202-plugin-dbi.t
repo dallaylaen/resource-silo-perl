@@ -9,7 +9,7 @@ use Resource::Silo::Plugin::DBI;
 
 resource config => is   => 'setting'; # defined after the dependency - this should be ok.
 
-subtest 'pre-setup' => sub {
+subtest 'pre-init' => sub {
     ok !DBI->can('errstr'), 'real DBI was not loaded';
 };
 
@@ -22,7 +22,7 @@ subtest 'pre-setup' => sub {
     $INC{'DBI.pm'}++;
 };
 
-Resource::Silo->setup( config => {
+Resource::Silo->init( config => {
     database => {
         dsn      => 'dbi:noexistsql:database=foobar',
         username => 'root',

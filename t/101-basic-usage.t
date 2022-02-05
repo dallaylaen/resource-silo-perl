@@ -55,7 +55,7 @@ subtest 'list_resources' => sub {
 };
 
 subtest 'silo dsl' => sub {
-    Resource::Silo->setup( safe => 'quux' );
+    Resource::Silo->init( safe => 'quux' );
     is silo->safe, 'quux', 'pure resource preserved';
     is silo->unsafe, 'quux-1', 'non-pure resource initialized';
     silo->reset;
