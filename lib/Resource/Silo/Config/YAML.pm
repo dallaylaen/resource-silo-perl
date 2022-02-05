@@ -20,7 +20,7 @@ Resource::Silo::Config::YAML - defines a YAML config for Resource::Silo
 
 use Resource::Silo;
 
-resource config => pure => 1, depends => [ 'config_file' ], required => 1,
+resource config => is => 'setting', depends => [ 'config_file' ], required => 1,
     build => sub {
         my $self = shift;
 
@@ -28,6 +28,6 @@ resource config => pure => 1, depends => [ 'config_file' ], required => 1,
         return YAML::XS::LoadFile( $self->config_file );
     };
 
-resource config_file => pure => 1, tentative => 1;
+resource config_file => is => 'setting', tentative => 1;
 
 1;

@@ -19,8 +19,8 @@ BEGIN {
 };
 
 my $id;
-resource safe   => pure => 1, undef;
-resource unsafe => pure => 0, sub {
+resource safe   => is => 'setting', undef;
+resource unsafe => is => 'setting', sub {
     my $self = shift;
     return $self->safe . '-' . ++$id;
 };

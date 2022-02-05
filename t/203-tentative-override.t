@@ -14,8 +14,8 @@ use Test::Exception;
 use Resource::Silo;
 
 # normal setup
-resource foo => pure => 1, build => sub { 42 };
-resource bar => pure => 1, build => sub { 3.14 }, tentative => 1;
+resource foo => is => 'setting', build => sub { 42 };
+resource bar => is => 'setting', build => sub { 3.14 }, tentative => 1;
 
 subtest 'before overrides' => sub {
     Resource::Silo->setup;
@@ -30,7 +30,7 @@ subtest 'teardown actually worked' => sub {
 
 subtest 'duplicate definition' => sub {
     throws_ok {
-        resource foo => pure => 1, build => sub { 137 };
+        resource foo => is => 'setting', build => sub { 137 };
     } qr/redefine .* foo/, 'duplicate definition = error';
 
     Resource::Silo->setup;
@@ -40,8 +40,8 @@ subtest 'duplicate definition' => sub {
 
 subtest 'tentative overrides' => sub {
     lives_ok {
-        resource foo => pure => 1, tentative => 1, build => sub { 137 };
-        resource bar => pure => 1, tentative => 1, build => sub { 3.1415 };
+        resource foo => is => 'setting', tentative => 1, build => sub { 137 };
+        resource bar => is => 'setting', tentative => 1, build => sub { 3.1415 };
     } 'duplicate definition ok if tentative';
 
     # new values got thrown away!
@@ -53,8 +53,8 @@ subtest 'tentative overrides' => sub {
 
 subtest 'overrides' => sub {
     lives_ok {
-        resource foo => pure => 1, override => 1, build => sub { 137 };
-        resource bar => pure => 1, build => sub { 3.1415 };
+        resource foo => is => 'setting', override => 1, build => sub { 137 };
+        resource bar => is => 'setting', build => sub { 3.1415 };
     } 'duplicate definition ok if tentative';
 
     Resource::Silo->setup;

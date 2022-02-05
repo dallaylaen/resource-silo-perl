@@ -14,7 +14,7 @@ use Resource::Silo;
 
 do {
     # define resources
-    resource safe => pure => 1 => undef;
+    resource safe => is => 'setting';
 
     my $id = 0;
     resource unsafe => sub {
@@ -42,15 +42,15 @@ subtest 'list_resources' => sub {
         my $data = $hash->{$_};
         subtest "key $_" => sub {
             is_deeply [sort keys %$data]
-                , [qw[ build depends type ]]
+                , [qw[ build depends is ]]
                 , 'no unexpected keys';
-            like $data->{type}, qr/^(value|resource|service)$/, 'purity is boolean';
+            like $data->{is}, qr/^(setting|resource|service)$/, 'purity is boolean';
             is ref $data->{build}, 'CODE', 'builder is present';
             is ref $data->{depends}, 'ARRAY', 'dependencies are an array';
         };
     };
-    is $hash->{safe}{type}, 'value', 'safe is a value';
-    is $hash->{unsafe}{type}, 'resource', 'unsafe is a resource';
+    is $hash->{safe}{is}, 'setting', 'safe is a setting';
+    is $hash->{unsafe}{is}, 'resource', 'unsafe is a resource';
 
 };
 

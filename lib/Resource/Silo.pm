@@ -80,7 +80,7 @@ my %meta;       # Known resources
 
 # define possible resource types. river referes to dependency ordering
 #     (aka CPAN river)
-my @res_river = qw[ value resource service ];
+my @res_river = qw[ setting resource service ];
 my %res_type = map { $res_river[$_] => $_ } 0..@res_river-1;
 
 =head2 silo
@@ -107,9 +107,18 @@ Last argument is the builder sub.
 
 =over
 
-=item pure => 1|0
+=item is   => 'setting' | 'resource' | 'service'
 
-Pure resources will not be re-initialized. Default is 0.
+A I<setting> is an immutable value that persists forever once set.
+(Literal in L<Bread::Board> terminology).
+
+A I<resource> may be re-initialized if needed (e.g. on fork).
+Typically an impure shared resource such as a database handle.
+
+A I<service> is an object that will be created from scratch every time,
+and may thus accept arguments.
+
+Default is 'resource'.
 
 =item required => 1|0
 
@@ -141,7 +150,7 @@ Default: 0.
 =cut
 
 my %def_options = map { $_=>1 } qw(
-    build depends override pure required tentative type validate );
+    build depends override required tentative is validate );
 sub resource (@) { ## no critic prototype
     my $name = shift;
     my $builder = @_%2 ? pop : undef;
@@ -152,8 +161,8 @@ sub resource (@) { ## no critic prototype
     my @unknown = grep { !$def_options{$_} } keys %opt;
     croak "Unexpected parameters in resource: ".join ', ', sort @unknown
         if @unknown;
-    my $river = $opt{pure} ? 0 : 1; # TODO rely on opt{type}
-    croak "unknown resource type $opt{type}"
+    my $river = $res_type{ $opt{is} // 'resource' };
+    croak "unknown resource type $opt{is}"
         unless defined $river;
 
     return if $meta{$name} and $opt{tentative};
@@ -279,7 +288,7 @@ sub list_resources {
         local $_ = $meta{$name};
         $out{$name} = {
             build   => $_->{build},
-            type    => $res_river[$_->{river}],
+            is      => $res_river[$_->{river}],
             depends => [@{ $_->{depends} }],
         };
     };

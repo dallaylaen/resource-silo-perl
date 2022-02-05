@@ -7,7 +7,7 @@ use Test::More;
 use Resource::Silo;
 use Resource::Silo::Plugin::DBI;
 
-resource config => pure => 1; # defined after the dependency - this should be ok.
+resource config => is   => 'setting'; # defined after the dependency - this should be ok.
 
 subtest 'pre-setup' => sub {
     ok !DBI->can('errstr'), 'real DBI was not loaded';
@@ -36,7 +36,7 @@ subtest 'metainfo' => sub {
     is ref $meta, 'HASH', 'a hash describing dbh exists'
         or return;
 
-    is $meta->{type}, 'resource', 'dbh is impure';
+    is $meta->{is}, 'resource', 'dbh is impure';
     is_deeply $meta->{depends}, [ 'config' ], 'dbh depends on config';
 };
 
