@@ -16,10 +16,10 @@ sub bad_args($$;$); ## no critic
 
 bad_args [4, sub {} ], qr/[Bb]ad.*resource.*name/, 'bad resource name';
 bad_args ['foo::bar', sub {} ], qr/[Bb]ad.*resource.*name/, 'unexpected characters';
-bad_args ['foo' ], qr/No builder/, 'no builder';
+bad_args ['foo' ], qr/Builder was not/, 'no builder';
 bad_args ['foo', build => sub {}, sub {} ], qr/uilder.*twice/, 'double builder';
 bad_args ['foo', build1 => sub {} ], qr/[Uu]nexpected/, 'unknown parameter name';
-bad_args ['foo', 'bar' ], qr/[Bb]uilder.*not a function/, 'Builder is not a sub';
+bad_args ['foo', 'bar' ], qr/[Bb]uilder.*function/, 'Builder is not a sub';
 
 done_testing;
 

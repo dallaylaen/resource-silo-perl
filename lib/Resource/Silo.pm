@@ -14,10 +14,10 @@ our $VERSION = 0.01;
 
 =head1 DESCRIPTION
 
-Resource::Silo provides a container object that holds shared resources
+Resource::Silo provides a container object that holds shared resources,
 such as database connections or configuration files.
 
-Such resources may depend on each other and will be initialized on demand,
+Resources may depend on each other and will be initialized on demand,
 and possibly re-initialized if e.g. the application forks.
 
 A default instance of the container is provided,
@@ -28,32 +28,42 @@ configuration and initialization, as well as a bundle of some useful presets.
 
 A Moo role is provided that handles dependency injection.
 
+The module name is a reference to I<Heroes of Might and Magic III: The
+Restoration of Erathia> video game.
+
 =head1 SYNOPSIS
 
     use Resource::Silo;
 
     # Moose-like resource DSL - this has to be done only once
-    resource config_file => pure => 1;
-    resource config => pure => 1, sub {
+
+    # A simple setting
+    resource config_file => is => 'setting';
+
+    # A setting with a builder
+    resource config => is => 'setting', depends => [ 'config_file' ], required => 1, build => sub {
         my $self = shift;
         Load(read_text($self->config_file));
     };
-    resource dbh => pure => 0, sub {
+
+    # A resource per se - a database connection.
+    resource dbh => sub {
         my $self = shift;
         my $conf = $self->config->{database};
         return DBI->connect( $conf->{dsn}, $conf->{username}, $conf->{password}, { RaiseError => 1} );
     };
 
-    # at the start of your script
+    # At the start of your script
+    # This will trigger loading the config because it is 'required'
     Resource::Silo->setup( config_file => "$FindBin::Bin/../etc/config.yaml" );
 
-    # everywhere else
+    # somewhere else
     silo->dbh; # returns a database handle, reconnecting if needed
 
     # somewhere in test files
     Resource::Silo->setup( dbh => $mock_database );
 
-    # in you classes
+    # in your classes
     with 'Resource::Silo::Role';
 
     sub do_something {
@@ -63,7 +73,8 @@ A Moo role is provided that handles dependency injection.
 
 =head1 EXPORT
 
-A clumsy DSL to define one's resources.
+Here goes a DSL that helps defining the application's resources,
+together with a prototyped default instance getter.
 
 =cut
 
@@ -97,7 +108,7 @@ sub silo () { ## no critic prototype
     return $instance;
 };
 
-=head2 resource 'name' => %options => sub { ... }
+=head2 resource 'name' => %options [=> sub { ... }]
 
 Define a new resource.
 
@@ -120,21 +131,40 @@ and may thus accept arguments.
 
 Default is 'resource'.
 
-=item required => 1|0
+=item build => sub { ... }
 
-Resource is forced to be loaded during Resource::Silo->setup.
+A function that builds the resource.
+May also be specified as the last argument without a key.
 
-B<NOTE> This does not affect calling Resource::Silo->new.
+The first argument to this function will be the Resource::Silo object
+from which the resource was requested.
 
-=item depends => [ 'name', ... ]
+=item depends => [ 'needed_resource_name', ... ]
 
 Resources that must be present to initialize this one.
 
 The dependencies will not normally be checked until setup() is called.
 
+=item class => 'My::Class'
+
+If present, this parameter will be used in conjunction with C<depends>
+to instantiate the resource.
+The values in the list will be passed to $class->new() as name => value pairs
+(in unknown order).
+
+The names in the C<depends> list may be replaced with pairs of the form
+C<[constructor_argument =E<gt> resource_to_fetch]> if names differ.
+
+=item required => 1|0
+
+Resource is forced to be loaded during Resource::Silo->setup.
+
+B<NOTE> This does not currently affect calling Resource::Silo->new.
+
 =item tentative => 1|0
 
 This definition is preliminary and may be overridden later.
+If the resource is defined already, this definition will be skipped.
 
 Default: 0.
 
@@ -150,7 +180,7 @@ Default: 0.
 =cut
 
 my %def_options = map { $_=>1 } qw(
-    build depends override required tentative is validate );
+    build class depends override required tentative is validate );
 sub resource (@) { ## no critic prototype
     my $name = shift;
     my $builder = @_%2 ? pop : undef;
@@ -177,28 +207,57 @@ sub resource (@) { ## no critic prototype
         if $opt{build} and $builder;
     $builder //= delete $opt{build};
 
-    croak "No builder found for impure resource"
-        if !$builder and $river;
+    croak "class is only available for a service"
+        if defined $opt{class} and $river != 2;
 
-    $builder //= sub {
-        # TODO should we even allow non-mandatory resource w/o builder?
-        confess "Resource $name wasn't specified and no builder found";
+    if ($river == 0) {
+        $builder //= sub {
+            # TODO should we even allow non-mandatory resource w/o builder?
+            confess "A setting $name was requested but never set";
+        };
     };
-    croak "Builder is not a function"
+
+    if (!$builder and my $class = $opt{class}) {
+        # TODO preload $class maybe?
+
+        my (@key_list, @dep_list);
+        foreach( @{ $opt{depends} || [] } ) {
+            if (ref $_ eq 'ARRAY') {
+                push @key_list, $_->[0];
+                push @dep_list, $_->[1];
+            } else {
+                push @key_list, $_;
+                push @dep_list, $_;
+            };
+        };
+        $builder = sub {
+            my $self = shift;
+            my %prereq;
+            @prereq{@key_list} = $self->get( @dep_list );
+            return $class->new( %prereq, @_ );
+        };
+        $opt{depends} = \@dep_list;
+    };
+
+    croak "Builder was not specified"
+        unless defined $builder;
+    croak "Builder must be a function, not ".(ref $builder || 'a scalar')
         if !ref $builder || reftype $builder ne 'CODE';
+    croak "depends must be a list of strings, or maybe pairs if class was set"
+        if $opt{depends} and grep { ref $_ or !$_ } @{ $opt{depends} };
 
-    # TODO moar validation
-
-
-    $meta{$name} = {
+    my $spec = {
         river   => $river,
         build   => $builder,
         depends => [ sort uniq @{ $opt{depends} || [] } ],
     };
 
     # use PerlX::Myabe?
-    $meta{$name}{tentative} = 1 if $opt{tentative};
-    $meta{$name}{required} = 1 if $opt{required};
+    $spec->{tentative} = 1 if $opt{tentative};
+    $spec->{required} = 1 if $opt{required};
+    $spec->{class} = $opt{class} if $opt{class};
+
+    $meta{$name} = $spec;
 
     my $code;
     if ($river == 0) {

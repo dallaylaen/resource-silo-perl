@@ -11,19 +11,30 @@ use warnings;
 use Test::More;
 use Test::Exception;
 
-use Resource::Silo;
-
-my $id;
-resource name => is => 'setting';
-resource inst => is => 'service', depends => [ 'name' ], build => sub {
-    my ($self, $add) = @_;
-    return join '-', $self->name, ++$id, $add ? $add : ();
+BEGIN {
+    package Foo;
+    # Knows nothing about Resource::Silo
+    use Moo;
+    my $id;
+    has id   => is => 'ro', default => sub { ++$id };
+    has conn => is => 'ro';
+    sub do_stuff {
+        my $self = shift;
+        return $self->conn ."+".$self->id;
+    };
 };
 
-my $rs = Resource::Silo->new(name => 'foo');
+use Resource::Silo;
 
-is $rs->inst, 'foo-1', 'service generated';
-is $rs->inst, 'foo-2', 'always a fresh object';
-is $rs->inst('bar'), 'foo-3-bar', 'parameter accepted';
+my $id = 100;
+resource name => is => 'setting';
+resource conn => is => 'resource', build => sub { $_[0]->name .'-'. ++$id};
+resource serv => is => 'service', depends => [ 'conn' ], class => 'Foo';
+
+my $rs = Resource::Silo->new(name => 'bar');
+
+is $rs->serv->do_stuff, 'bar-101+1', 'service generated';
+is $rs->serv->do_stuff, 'bar-101+2', 'always a fresh object';
+is $rs->serv(id => 42)->do_stuff, 'bar-101+42', 'parameters accepted';
 
 done_testing;

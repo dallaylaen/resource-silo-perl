@@ -16,7 +16,7 @@ use Resource::Silo::Config::YAML;
 
 throws_ok {
     Resource::Silo->setup;
-} qr/[Rr]esource.*config_file/, 'setup does not work without config_file';
+} qr/setting config_file/, 'setup does not work without config_file';
 
 throws_ok {
     silo

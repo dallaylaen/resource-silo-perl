@@ -18,6 +18,7 @@ BEGIN {
                 github metacpan annocpan CPAN perldoc RT
                 TBD DSL
                 pid
+                Erathia
             ]],
         }
     );
