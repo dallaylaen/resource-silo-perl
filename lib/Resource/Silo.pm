@@ -370,14 +370,20 @@ sub check_deps {
     # TODO check circularity, too
     foreach my $name( sort keys %meta ) {
         my $entry = $meta{$name};
+        my $res = $res_river[ $entry->{river} ];
         my @missing;
+        my @downstream;
         foreach (@{ $entry->{depends} }) {
-            push @missing, $_
-                unless ($meta{$_});
-            # TODO pure resources can't depend on impure!
+            if (!$meta{$_}) {
+                push @missing, $_;
+            } elsif ($meta{$_}{river} > $entry->{river}) {
+                push @downstream, $_;
+            };
         };
-        push @bad, "resource $name depends on [".(join ', ', @missing).']'
+        push @bad, "$res $name depends on unknown resource(s) [".(join ', ', @missing).']'
             if @missing;
+        push @bad, "$res $name depends on downstream resource(s) [".(join ', ', @downstream).']'
+            if @downstream;
     };
     # TODO maybe structured return here?
     croak "Resource::Silo: unsatisfied dependencies: ".join "; ", @bad
