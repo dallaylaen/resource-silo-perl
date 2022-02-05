@@ -29,13 +29,14 @@ a DBI instance.
 
 use Resource::Silo;
 
-resource dbh => depends => [ 'config' ], build => sub {
+resource 'dbh/options', is => 'setting', value => { RaiseError => 1 };
+resource dbh => depends => [ 'config', 'dbh/options' ], build => sub {
     my $self = shift;
     my $conf = $self->config->{database};
 
     # TODO generate dsn from driver, host, and database name
     require DBI;
-    return DBI->connect( $conf->{dsn}, $conf->{username}, $conf->{password}, { RaiseError => 1 } );
+    return DBI->connect( $conf->{dsn}, $conf->{username}, $conf->{password}, $self->get( 'dbh/options' ) );
 };
 
 # TODO append extra validation to the 'config' resource

@@ -257,7 +257,7 @@ sub resource (@) { ## no critic prototype
     my $spec = {
         river   => $river,
         build   => $builder,
-        depends => [ sort uniq @{ $opt{depends} || [] } ],
+        depends => [ sort { $a cmp $b } uniq @{ $opt{depends} || [] } ],
     };
 
     # use PerlX::Myabe?

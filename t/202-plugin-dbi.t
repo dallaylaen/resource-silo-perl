@@ -37,7 +37,7 @@ subtest 'metainfo' => sub {
         or return;
 
     is $meta->{is}, 'resource', 'dbh is impure';
-    is_deeply $meta->{depends}, [ 'config' ], 'dbh depends on config';
+    is_deeply $meta->{depends}, [ 'config', 'dbh/options' ], 'dbh depends on config';
 };
 
 subtest 'fetch dbh' => sub {
