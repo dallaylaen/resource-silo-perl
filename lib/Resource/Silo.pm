@@ -180,7 +180,7 @@ Default: 0.
 =cut
 
 my %def_options = map { $_=>1 } qw(
-    add_method build class depends override required tentative is validate );
+    add_method build class depends is override required tentative value );
 sub resource (@) { ## no critic prototype
     my $name = shift;
     my $builder = @_%2 ? pop : undef;
@@ -209,8 +209,14 @@ sub resource (@) { ## no critic prototype
         if $opt{build} and $builder;
     $builder //= delete $opt{build};
 
-    croak "class is only available for a service"
-        if defined $opt{class} and $river != 2;
+    if (defined $opt{value}) {
+        croak "Value may only be applicable to a setting"
+            if $river > 0;
+        croak "Value and builder specified at the same time"
+            if defined $builder;
+        my $value = $opt{value};
+        $builder = sub { $value };
+    }
 
     if ($river == 0) {
         $builder //= sub {
