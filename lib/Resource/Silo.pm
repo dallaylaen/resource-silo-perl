@@ -180,14 +180,15 @@ Default: 0.
 =cut
 
 my %def_options = map { $_=>1 } qw(
-    build class depends override required tentative is validate );
+    add_method build class depends override required tentative is validate );
 sub resource (@) { ## no critic prototype
     my $name = shift;
     my $builder = @_%2 ? pop : undef;
     my %opt = @_;
 
     croak "Bad resource name, must be an identifier"
-        unless $name =~ /^[a-z][a-z_0-9]*$/i;
+        unless $name =~ /^([a-z][a-z_0-9]*)((?:[-.:\/][a-z_0-9]+)*)$/i;
+    $opt{add_method} //= $2 ? 0 : 1;
     my @unknown = grep { !$def_options{$_} } keys %opt;
     croak "Unexpected parameters in resource: ".join ', ', sort @unknown
         if @unknown;
@@ -196,12 +197,13 @@ sub resource (@) { ## no critic prototype
         unless defined $river;
 
     return if $meta{$name} and $opt{tentative};
-
     croak "Attempt to redefine resource type $name"
         if $meta{$name}
             and not ($opt{override} or $meta{$name}{tentative});
+
     croak "Resource name '$name' clashes with a method in Resource::Silo"
-        if Resource::Silo->can($name) and !$meta{$name};
+        if !$meta{$name} and Resource::Silo->can($name);
+        # TODO allow silent resources that clash with method names, but later
 
     croak "Builder specified twice"
         if $opt{build} and $builder;
@@ -280,11 +282,13 @@ sub resource (@) { ## no critic prototype
         $code = $builder;
     };
 
-    $meta{$name}{fetch} = $code;
+    $meta{$name}{getter} = $code;
 
-    no strict 'refs'; ## no critic
-    no warnings 'redefine'; ## no critic
-    *$name = $code;
+    if ($opt{add_method}) {
+        no strict 'refs'; ## no critic
+        no warnings 'redefine'; ## no critic
+        *$name = $code;
+    };
 
     return; # ensure void
 };
@@ -451,8 +455,11 @@ sub get {
     # TODO name?
     my ($self, @list) = @_;
 
-    # TODO validate
-    my @ret = map { $self->$_ } @list;
+    my @missing = grep { !$meta{$_} } @list;
+    croak "Unknown resources requested: ".join ", ", @missing
+        if @missing;
+
+    my @ret = map { $meta{$_}{getter}->($self) } @list;
     return wantarray ? @ret : $ret[0];
 }
 
@@ -471,7 +478,11 @@ without this hack.
 sub fresh {
     my ($self, $name) = @_;
 
-    return $meta{$name}{build}->($self);
+    my $entry = $meta{$name};
+    croak "Unknown resource requested: $name"
+        unless $entry;
+
+    return $entry->{build}->($self);
 };
 
 =head2 override( name => $value, ... )
